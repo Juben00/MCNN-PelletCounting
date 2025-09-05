@@ -11,7 +11,7 @@ from my_dataloader import CrowdDataset
 if __name__=="__main__":
     torch.backends.cudnn.enabled=False
     vis=visdom.Visdom()
-    device=torch.device("cuda")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mcnn=MCNN().to(device)
     criterion=nn.MSELoss(size_average=False).to(device)
     optimizer = torch.optim.SGD(mcnn.parameters(), lr=1e-6,
@@ -19,12 +19,12 @@ if __name__=="__main__":
     
     img_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\train_data\\images'
     gt_dmap_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\train_data\\densitymaps'
-    dataset = CrowdDataset(img_root, gt_dmap_root, 8)
+    dataset = CrowdDataset(img_root, gt_dmap_root, 4)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
 
     test_img_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\test_data\\images'
     test_gt_dmap_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\test_data\\densitymaps'
-    test_dataset = CrowdDataset(test_img_root, test_gt_dmap_root, 8)
+    test_dataset = CrowdDataset(test_img_root, test_gt_dmap_root, 4)
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
 
     #training phase
@@ -35,7 +35,7 @@ if __name__=="__main__":
     train_loss_list=[]
     epoch_list=[]
     test_error_list=[]
-    for epoch in range(0,2000):
+    for epoch in range(0,50):
 
         mcnn.train()
         epoch_loss=0
