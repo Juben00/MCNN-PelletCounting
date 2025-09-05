@@ -19,12 +19,12 @@ if __name__=="__main__":
     
     img_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\train_data\\images'
     gt_dmap_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\train_data\\densitymaps'
-    dataset = CrowdDataset(img_root, gt_dmap_root, 4)
+    dataset = CrowdDataset(img_root, gt_dmap_root, 8)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
 
     test_img_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\test_data\\images'
     test_gt_dmap_root = 'c:\\Users\\user\\Thesis\\GITHUB_MCNN\\data\\test_data\\densitymaps'
-    test_dataset = CrowdDataset(test_img_root, test_gt_dmap_root, 4)
+    test_dataset = CrowdDataset(test_img_root, test_gt_dmap_root, 8)
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
 
     #training phase
