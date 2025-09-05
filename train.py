@@ -13,7 +13,8 @@ if __name__=="__main__":
     vis=visdom.Visdom()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mcnn=MCNN().to(device)
-    criterion=nn.MSELoss(size_average=False).to(device)
+    # criterion=nn.MSELoss(size_average=False).to(device)
+    criterion = nn.MSELoss(reduction='sum').to(device)
     optimizer = torch.optim.SGD(mcnn.parameters(), lr=1e-6,
                                 momentum=0.95)
     
