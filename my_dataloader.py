@@ -46,6 +46,11 @@ class CrowdDataset(Dataset):
 
             img_tensor=torch.tensor(img,dtype=torch.float)
             gt_dmap_tensor=torch.tensor(gt_dmap,dtype=torch.float)
+        else:
+            img = img.transpose((2,0,1)) # convert to order (channel,rows,cols)
+            gt_dmap = gt_dmap[np.newaxis,:,:]
+            img_tensor = torch.tensor(img, dtype=torch.float)
+            gt_dmap_tensor = torch.tensor(gt_dmap, dtype=torch.float)
 
         return img_tensor,gt_dmap_tensor
 
