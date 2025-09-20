@@ -5,6 +5,7 @@ import os
 from tqdm import tqdm
 import json
 import cv2
+from datetime import datetime
 
 from mcnn_model import MCNN
 from improved_dataloader import PelletDataset
@@ -262,7 +263,7 @@ def main():
     evaluation_results = {
         'overall_metrics': overall_metrics,
         'individual_results': results,
-        'evaluation_date': torch.datetime.now().isoformat()
+        'evaluation_date': datetime.now().isoformat()
     }
     
     with open('./results/evaluation_results.json', 'w') as f:

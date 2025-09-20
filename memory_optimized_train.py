@@ -80,6 +80,25 @@ def clear_memory():
         torch.cuda.empty_cache()
     gc.collect()
 
+class CountFocusedLoss(nn.Module):
+    """Emergency count-focused loss for severe overestimation"""
+    def __init__(self, mse_weight=1.0, count_weight=50.0):
+        super().__init__()
+        self.mse_weight = mse_weight
+        self.count_weight = count_weight
+    
+    def forward(self, pred, target):
+        # Standard MSE loss
+        mse_loss = nn.functional.mse_loss(pred, target, reduction='sum')
+        
+        # Heavy count penalty
+        pred_count = pred.sum()
+        target_count = target.sum()
+        count_loss = nn.functional.mse_loss(pred_count, target_count)
+        
+        total_loss = self.mse_weight * mse_loss + self.count_weight * count_loss
+        return total_loss
+
 def calculate_metrics(predicted_dmap, gt_dmap):
     """Calculate various evaluation metrics"""
     pred_count = predicted_dmap.sum().item()
@@ -301,15 +320,15 @@ def main():
     # Memory-optimized configuration for 4GB GPU
     config = {
         'batch_size': 1,  # Keep at 1 due to variable image sizes
-        'learning_rate': 1e-5,
-        'num_epochs': 100,
+        'learning_rate': 5e-7,  # MUCH lower learning rate for stability
+        'num_epochs': 200,  # More epochs for proper convergence
         'gt_downsample': 4,  # Keep this to reduce memory
-        'weight_decay': 1e-4,
-        'early_stopping_patience': 15,
-        'lr_patience': 8,
+        'weight_decay': 1e-3,  # Higher regularization
+        'early_stopping_patience': 30,  # More patience
+        'lr_patience': 15,
         'save_every': 10,
-        'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-        'accumulation_steps': 4,  # Simulate larger batch size
+        'device': 'cuda' if torch.cuda.is_available() else 'cpu',  # Auto-detect GPU/CPU
+        'accumulation_steps': 8,  # Larger effective batch size
         'max_image_size': (600, 800)  # Limit image size to save memory
     }
     
@@ -360,8 +379,10 @@ def main():
     # Enable mixed precision training for memory efficiency
     scaler = torch.cuda.amp.GradScaler() if device.type == 'cuda' else None
     
-    # Loss function and optimizer
-    criterion = nn.MSELoss(reduction='sum').to(device)
+    # Loss function and optimizer - USE COUNT-FOCUSED LOSS
+    criterion = CountFocusedLoss(mse_weight=1.0, count_weight=100.0).to(device)
+    print("🎯 Using Count-Focused Loss (mse_weight=1.0, count_weight=100.0)")
+    
     optimizer = torch.optim.Adam(
         model.parameters(), 
         lr=config['learning_rate'],
