@@ -451,7 +451,7 @@ def main():
     # Learning rate scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=config['lr_patience'],
-        min_lr=1e-8, verbose=True
+        min_lr=1e-8
     )
     
     early_stopping = EarlyStopping(patience=config['early_stopping_patience'], min_delta=0.1)
