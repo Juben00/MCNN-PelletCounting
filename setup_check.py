@@ -107,7 +107,7 @@ def check_models():
         return False
     
     try:
-        from improved_dataloader import PelletDataset, create_data_loaders
+        from dataloader import PelletDataset, create_data_loaders
         print("✅ Data loader")
     except ImportError as e:
         print(f"❌ Data loader import failed: {e}")

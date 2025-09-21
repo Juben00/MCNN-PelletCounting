@@ -17,7 +17,7 @@ from tqdm import tqdm
 import torch
 
 from mcnn_model import MCNN
-from improved_dataloader import PelletDataset
+from dataloader import PelletDataset
 
 class PerfectionAnalyzer:
     """Comprehensive analyzer for 100% accuracy validation"""
