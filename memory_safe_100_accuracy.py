@@ -294,7 +294,7 @@ def main():
     # Initialize loss and optimizer
     criterion = MemorySafePerfectLoss(count_weight=500.0, spatial_weight=1.0, precision_weight=250.0)
     optimizer = optim.AdamW(model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay'])
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=config['lr_patience'], factor=0.5, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=config['lr_patience'], factor=0.5)
     
     # Mixed precision scaler
     scaler = GradScaler()
