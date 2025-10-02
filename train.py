@@ -19,7 +19,8 @@ from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
 from mcnn_model import MCNN
-from my_dataloader import CrowdDataset
+from dataloader import CrowdDataset
+from config import Config
 
 # Force aggressive memory management
 torch.backends.cudnn.deterministic = True
@@ -52,7 +53,7 @@ def extreme_memory_cleanup():
         torch.cuda.synchronize()
     gc.collect()
 
-def mini_batch_training_loop(model, dataloader, criterion, optimizer, scaler, device, accumulation_steps=64):
+def mini_batch_training_loop(model, dataloader, criterion, optimizer, scaler, device, config, accumulation_steps=64):
     """Ultra-memory-efficient training loop"""
     
     model.train()
@@ -92,6 +93,10 @@ def mini_batch_training_loop(model, dataloader, criterion, optimizer, scaler, de
             
             # Gradient accumulation step
             if (batch_idx + 1) % accumulation_steps == 0:
+                # Apply gradient clipping from config.py
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config['gradient_clip_norm'])
+                
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()
@@ -124,6 +129,10 @@ def mini_batch_training_loop(model, dataloader, criterion, optimizer, scaler, de
     
     # Final gradient step if needed
     if len(dataloader) % accumulation_steps != 0:
+        # Apply gradient clipping from config.py
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), config['gradient_clip_norm'])
+        
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad()
@@ -181,18 +190,25 @@ def main():
     print("⚡ Extreme Memory Optimization for RTX 3050 Ti")
     print("=" * 80)
     
-    # Minimal configuration
+    # Load configuration from Config class
+    config_obj = Config()
     config = {
-        'batch_size': 1,
-        'accumulation_steps': 64,  # Very high accumulation
-        'learning_rate': 1e-6,     # Very low LR
-        'num_epochs': 100,
-        'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+        'batch_size': config_obj.batch_size,  # 4 from config.py
+        'learning_rate': config_obj.lr,       # 1e-5 from config.py
+        'num_epochs': config_obj.epochs,      # 300 from config.py
+        'weight_decay': config_obj.weight_decay,  # 1e-4 from config.py
+        'gradient_clip_norm': config_obj.gradient_clip_norm,  # 0.5 from config.py
+        'early_stopping_patience': config_obj.early_stopping_patience,  # 55 from config.py
+        'lr_scheduler_patience': config_obj.lr_scheduler_patience,  # 12 from config.py
+        'lr_scheduler_factor': config_obj.lr_scheduler_factor,  # 0.3 from config.py
+        'min_lr': config_obj.min_lr,  # 1e-7 from config.py
+        'device': config_obj.device,
         'save_every': 10,
-        'validation_every': 5
+        'validation_every': 5,
+        'accumulation_steps': config_obj.batch_size * 16  # Adjust based on batch size
     }
     
-    device = torch.device(config['device'])
+    device = config_obj.device
     print(f"Device: {device}")
     
     if torch.cuda.is_available():
@@ -235,9 +251,24 @@ def main():
     model = MCNN().to(device)
     print("Using standard MCNN (ultra-minimal)")
     
-    # Ultra-simple loss and optimizer
+    # Ultra-simple loss and optimizer with config.py parameters
     criterion = UltraMinimalLoss(count_weight=50.0)  # Lower weight to avoid huge numbers
-    optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'])
+    optimizer = optim.Adam(
+        model.parameters(), 
+        lr=config['learning_rate'],
+        weight_decay=config['weight_decay']
+    )
+    
+    # Add learning rate scheduler from config.py
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=config['lr_scheduler_factor'],
+        patience=config['lr_scheduler_patience'],
+        min_lr=config['min_lr'],
+        verbose=True
+    )
+    
     scaler = GradScaler()
     
     print("Using UltraMinimalLoss (50x count weight)")
@@ -245,6 +276,7 @@ def main():
     # Training tracking
     best_perfect_accuracy = 0
     training_history = []
+    epochs_without_improvement = 0
     
     # Create checkpoints directory
     os.makedirs('./checkpoints', exist_ok=True)
@@ -261,7 +293,7 @@ def main():
         # Training
         try:
             train_loss, train_perfect_acc = mini_batch_training_loop(
-                model, train_loader, criterion, optimizer, scaler, device, 
+                model, train_loader, criterion, optimizer, scaler, device, config,
                 config['accumulation_steps']
             )
             
@@ -281,9 +313,15 @@ def main():
                 
                 print(f"Validation - Loss: {val_loss:.6f}, Perfect Accuracy: {val_perfect_acc:.2f}%")
                 
+                # Update learning rate scheduler
+                lr_scheduler.step(val_loss)
+                
                 # Save best model
                 if val_perfect_acc > best_perfect_accuracy:
                     best_perfect_accuracy = val_perfect_acc
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
                     
                     checkpoint = {
                         'epoch': epoch + 1,
@@ -310,6 +348,11 @@ def main():
             except Exception as e:
                 print(f"❌ Validation failed: {e}")
                 extreme_memory_cleanup()
+        
+        # Early stopping check
+        if epochs_without_improvement >= config['early_stopping_patience']:
+            print(f"\n🛑 Early stopping triggered after {config['early_stopping_patience']} epochs without improvement")
+            break
         
         # Periodic save
         if (epoch + 1) % config['save_every'] == 0:
